@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简易 RSA 加密/解密</title>
+    <!-- 引入 JSEncrypt 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/jsencrypt@3.0.0-beta.1/bin/jsencrypt.min.js"></script>
+    <style>
+        /* 页面基础样式 */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100%;
+            width: 100%;
+            color: #333;
+            overflow-y: auto;
+            /* 允许页面滚动 */
+        }
+
+        /* 页面容器，最大宽度1000px，并允许小屏幕缩放 */
+        .container {
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 1000px;
+            box-sizing: border-box;
+        }
+
+        /* 页面标题 */
+        h3 {
+            text-align: center;
+            color: #444;
+        }
+
+        /* 每个模块的样式 */
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section h4 {
+            margin: 10px 0;
+            color: #555;
+        }
+
+        /* 文本框样式 */
+        textarea {
+            width: 100%;
+            padding: 10px;
+            /* 增加按钮和文本框之间的间距 */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            font-size: 14px;
+            box-sizing: border-box;
+            /* 包括边框和内边距 */
+        }
+
+        /* 按钮样式 */
+        button {
+            padding: 10px 20px;
+            margin-top: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            margin-bottom: 20px;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        /* 复制按钮样式 */
+        .copy-button {
+            background-color: #2196F3;
+        }
+
+        .copy-button:hover {
+            background-color: #0b7dda;
+        }
+
+        /* 按钮容器样式，确保居中 */
+        .btn-container {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* 弹性布局：用于公钥和私钥部分 */
+        .flex-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: space-between;
+        }
+
+        .flex-container .section {
+            flex: 1;
+            min-width: 300px;
+            /* 保证在小屏幕下也能显示 */
+        }
+
+        /* 媒体查询：优化小屏幕上的显示 */
+        @media (max-width: 768px) {
+            .flex-container {
+                flex-direction: column;
+            }
+
+            .section {
+                width: 100%;
+            }
+        }
+
+        /* 响应式：避免超宽内容 */
+        .alert {
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            color: #666;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h3>RSA 客户端加密解密工具（纯前端实现）</h3>
+        <div class="alert">
+            <p id="help">非对称加密使用指南</p>
+            <button onclick="iAmSender()">我是发送方</button>
+            <button onclick="iAmReceiver()">我是接收方</button>
+        </div>
+
+        <div class="section">
+            <div class="btn-container">
+                <button onclick="generateKeys(2048)">生成 2048 位密钥</button>
+                <button onclick="generateKeys(1024)">生成 1024 位密钥 (危险)</button>
+            </div>
+            <div class="flex-container">
+                <div class="section">
+                    <h4>Private Key（私钥，请勿分享给任何人，且保存在本地）</h4>
+                    <textarea id="privateKey" style="font-size: 12px;" placeholder="Private Key (私钥，解密时输入自己的私钥)"
+                        rows="8"></textarea>
+                </div>
+                <div class="section">
+                    <h4>Public Key（公钥，分享给发送方）</h4>
+                    <textarea id="publicKey" style="font-size: 12px;" placeholder="Public Key（公钥，加密时输入对方的公钥）"
+                        rows="8"></textarea>
+                </div>
+            </div>
+            <div class="btn-container">
+                <button class="copy-button" onclick="copyToClipboard('publicKey')">复制公钥</button>
+            </div>
+
+        </div>
+
+        <div class="section">
+            <h4>加密</h4>
+            <textarea id="inputText" placeholder="输入原始文本（大小不能超过 117 Bytes）" rows="8"></textarea><br>
+            <!-- 245 Bytes for 2048 -->
+            <div class="btn-container">
+                <button onclick="encryptText()">加密</button>
+            </div>
+            <textarea id="encrypted" rows="8" placeholder="加密文本"></textarea>
+            <div class="btn-container">
+                <button class="copy-button" onclick="copyToClipboard('encrypted')">复制加密文本</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h4>解密</h4>
+            <textarea id="decryptInput" placeholder="输入加密文本" rows="8"></textarea><br>
+            <div class="btn-container">
+                <button onclick="decryptText()">解密</button>
+            </div>
+            <textarea id="decrypted" rows="8" placeholder="原始文本"></textarea><br>
+            <div class="btn-container">
+                <button class="copy-button" onclick="copyToClipboard('decrypted')">复制原始文本</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function iAmSender() {
+            document.getElementById('help').innerText = "你是发送方：1. 让对方生成密钥对；2. 让对方分享公钥；3. 使用公钥加密文本，发送给对方。";
+        }
+
+        function iAmReceiver() {
+            document.getElementById('help').innerText = "你是接收方：1. 生成密钥对（为了安全，你可以每次都重新生成）；2. 将公钥分享给对方；3. 使用私钥解密接收到的加密文本。\n手机性能较弱，生成 2048 位的密钥可能需要较长时间（10-30s），你可以选择生成 1024 位的密钥，但是如今这被普遍认为是不够安全的。";
+        }
+
+        let crypt;
+        const defaultKeySize = 1024;
+
+        // 动态初始化加密/解密时的 RSA 加密工具
+        function initializeCrypt() {
+            const publicKey = document.getElementById('publicKey').value;
+            const privateKey = document.getElementById('privateKey').value;
+            crypt = new JSEncrypt({ default_key_size: defaultKeySize });
+
+            // 如果有公钥和私钥，则分别设置它们
+            if (publicKey) crypt.setPublicKey(publicKey);
+            if (privateKey) crypt.setPrivateKey(privateKey);
+        }
+
+        // 生成密钥
+        function generateKeys(keySize) {
+            crypt = new JSEncrypt({ default_key_size: keySize });
+            // 如果已经有私钥，但是没有公钥，则生成公钥，否则重新生成
+            const privateKey = document.getElementById('privateKey').value;
+            const publicKey = document.getElementById('publicKey').value;
+            if (privateKey && privateKey.length > 0 && (!publicKey || publicKey.length === 0)) {
+                crypt.setPrivateKey(privateKey);
+            } else {
+                console.log("Generating new keys...");
+                document.getElementById('privateKey').value = "计算中...";
+                document.getElementById('publicKey').value = "计算中...";
+                crypt.getKey();
+            }
+            document.getElementById('privateKey').value = crypt.getPrivateKey();
+            document.getElementById('publicKey').value = crypt.getPublicKey();
+        }
+
+        // 加密文本
+        function encryptText() {
+            initializeCrypt();  // 动态初始化
+            const inputText = document.getElementById('inputText').value;
+            const encrypted = crypt.encrypt(inputText);
+            document.getElementById('encrypted').value = encrypted || "Encryption failed.";
+
+            // 将加密的文本同步到解密输入框
+            document.getElementById('decryptInput').value = encrypted || "Encryption failed.";
+        }
+
+        // 解密文本
+        function decryptText() {
+            initializeCrypt();  // 动态初始化
+            const encryptedText = document.getElementById('decryptInput').value;
+            const decrypted = crypt.decrypt(encryptedText);
+            document.getElementById('decrypted').value = decrypted || "Decryption failed.";
+        }
+
+        // 复制文本到剪贴板
+        function copyToClipboard(id) {
+            const textArea = document.getElementById(id);
+            textArea.select();
+            document.execCommand('copy');
+            alert("Copied to clipboard: " + textArea.value);
+        }
+    </script>
+</body>
+
+</html>
