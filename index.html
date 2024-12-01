@@ -134,6 +134,27 @@
             font-size: 14px;
             text-align: center;
         }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+
+        /* 显示 Toast 的样式 */
+        .toast.show {
+            opacity: 1;
+            visibility: visible;
+        }
     </style>
 </head>
 
@@ -149,11 +170,11 @@
         <div class="section">
             <div class="btn-container">
                 <button onclick="generateKeys(2048)">生成 2048 位密钥</button>
-                <button onclick="generateKeys(1024)">生成 1024 位密钥 (危险)</button>
+                <!-- <button onclick="generateKeys(1024)">生成 1024 位密钥 (危险)</button> -->
             </div>
             <div class="flex-container">
                 <div class="section">
-                    <h4>Private Key（私钥，请勿分享给任何人，且保存在本地）</h4>
+                    <h4>Private Key（私钥，请勿分享，并保存在不可联网的本地）</h4>
                     <textarea id="privateKey" style="font-size: 12px;" placeholder="Private Key (私钥，解密时输入自己的私钥)"
                         rows="8"></textarea>
                 </div>
@@ -171,9 +192,11 @@
 
         <div class="section">
             <h4>加密</h4>
-            <textarea id="inputText" placeholder="输入原始文本（大小不能超过 117 Bytes）" rows="8"></textarea><br>
+            <textarea id="inputText" placeholder="输入原始文本（大小不能超过 245 Bytes）" rows="8"></textarea><br>
+            <!-- 117 Bytes for 1024 -->
             <!-- 245 Bytes for 2048 -->
             <div class="btn-container">
+                <button onclick="pasteToTextarea('inputText');">粘贴原始文本</button>
                 <button onclick="encryptText()">加密</button>
             </div>
             <textarea id="encrypted" rows="8" placeholder="加密文本"></textarea>
@@ -186,6 +209,7 @@
             <h4>解密</h4>
             <textarea id="decryptInput" placeholder="输入加密文本" rows="8"></textarea><br>
             <div class="btn-container">
+                <button onclick="pasteToTextarea('decryptInput');">粘贴加密文本</button>
                 <button onclick="decryptText()">解密</button>
             </div>
             <textarea id="decrypted" rows="8" placeholder="原始文本"></textarea><br>
@@ -193,6 +217,9 @@
                 <button class="copy-button" onclick="copyToClipboard('decrypted')">复制原始文本</button>
             </div>
         </div>
+        <div id="toast" class="toast">已复制到剪贴板！</div>
+        <div id="toast_public" class="toast">请先输入对方的公钥！</div>
+        <div id="toast_private" class="toast">请先生成或输入你的私钥！</div>
     </div>
 
     <script>
@@ -201,7 +228,19 @@
         }
 
         function iAmReceiver() {
-            document.getElementById('help').innerText = "你是接收方：1. 生成密钥对（为了安全，你可以每次都重新生成）；2. 将公钥分享给对方；3. 使用私钥解密接收到的加密文本。\n手机性能较弱，生成 2048 位的密钥可能需要较长时间（10-30s），你可以选择生成 1024 位的密钥，但是如今这被普遍认为是不够安全的。";
+            document.getElementById('help').innerText = "你是接收方：1. 生成密钥对（为了安全，你可以每次都重新生成）；2. 将公钥分享给对方；3. 使用私钥解密接收到的加密文本。";
+        }
+
+        function showToast(id) {
+            const toast = document.getElementById(id);
+
+            // 显示 Toast
+            toast.classList.add('show');
+
+            // 设置 1.5 秒后自动消失
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 1500);  // 1.5秒后消失
         }
 
         let crypt;
@@ -226,41 +265,70 @@
             const publicKey = document.getElementById('publicKey').value;
             if (privateKey && privateKey.length > 0 && (!publicKey || publicKey.length === 0)) {
                 crypt.setPrivateKey(privateKey);
+                setTimeout(() => {
+                    document.getElementById('publicKey').value = crypt.getPublicKey();
+                }, 100);
             } else {
                 console.log("Generating new keys...");
                 document.getElementById('privateKey').value = "计算中...";
                 document.getElementById('publicKey').value = "计算中...";
-                crypt.getKey();
+                setTimeout(() => {
+                    crypt.getKey();
+                    document.getElementById('privateKey').value = crypt.getPrivateKey();
+                    document.getElementById('publicKey').value = crypt.getPublicKey();
+                }, 100);
             }
-            document.getElementById('privateKey').value = crypt.getPrivateKey();
-            document.getElementById('publicKey').value = crypt.getPublicKey();
         }
 
         // 加密文本
         function encryptText() {
+            const publicKey = document.getElementById('publicKey').value;
+            if (!publicKey || publicKey.length === 0) {
+                showToast('toast_public');
+                return;
+            }
             initializeCrypt();  // 动态初始化
             const inputText = document.getElementById('inputText').value;
             const encrypted = crypt.encrypt(inputText);
-            document.getElementById('encrypted').value = encrypted || "Encryption failed.";
+            document.getElementById('encrypted').value = encrypted || "加密失败，请检查公钥是否正确设置。";
 
             // 将加密的文本同步到解密输入框
-            document.getElementById('decryptInput').value = encrypted || "Encryption failed.";
+            document.getElementById('decryptInput').value = encrypted || "加密失败，请检查公钥是否正确设置。";
         }
 
         // 解密文本
         function decryptText() {
+            const privateKey = document.getElementById('privateKey').value;
+            if (!privateKey || privateKey.length === 0) {
+                showToast('toast_private');
+                return;
+            }
             initializeCrypt();  // 动态初始化
             const encryptedText = document.getElementById('decryptInput').value;
             const decrypted = crypt.decrypt(encryptedText);
-            document.getElementById('decrypted').value = decrypted || "Decryption failed.";
+            document.getElementById('decrypted').value = decrypted || "解密失败，请检查私钥是否正确设置。";
         }
 
         // 复制文本到剪贴板
         function copyToClipboard(id) {
             const textArea = document.getElementById(id);
-            textArea.select();
-            document.execCommand('copy');
-            alert("Copied to clipboard: " + textArea.value);
+            const text = textArea.value;
+            navigator.clipboard.writeText(text).then(function () {
+                console.log("Copied to clipboard: ", text);
+                showToast('toast');
+            }, function (err) {
+                console.error("Failed to copy to clipboard: ", err);
+            });
+        }
+
+        // 粘贴文本到文本框
+        function pasteToTextarea(id) {
+            const textArea = document.getElementById(id);
+            navigator.clipboard.readText().then(function (text) {
+                textArea.value = text;
+            }, function (err) {
+                console.error("Failed to paste from clipboard: ", err);
+            });
         }
     </script>
 </body>
