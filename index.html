@@ -165,6 +165,7 @@
             <p id="help">非对称加密使用指南</p>
             <button onclick="iAmSender()">我是发送方</button>
             <button onclick="iAmReceiver()">我是接收方</button>
+            <button onclick="iAmBoth()">显示所有内容</button>
         </div>
 
         <div class="section">
@@ -190,7 +191,7 @@
 
         </div>
 
-        <div class="section">
+        <div class="section" id="encryptSection">
             <h4>加密</h4>
             <textarea id="inputText" placeholder="输入原始文本（大小不能超过 245 Bytes）" rows="8"></textarea><br>
             <!-- 117 Bytes for 1024 -->
@@ -205,7 +206,7 @@
             </div>
         </div>
 
-        <div class="section">
+        <div class="section" id="decryptSection">
             <h4>解密</h4>
             <textarea id="decryptInput" placeholder="输入加密文本" rows="8"></textarea><br>
             <div class="btn-container">
@@ -225,10 +226,20 @@
     <script>
         function iAmSender() {
             document.getElementById('help').innerText = "你是发送方：1. 让对方生成密钥对；2. 让对方分享公钥；3. 使用公钥加密文本，发送给对方。";
+            document.getElementById('encryptSection').style.display = 'block';
+            document.getElementById('decryptSection').style.display = 'none';
         }
 
         function iAmReceiver() {
             document.getElementById('help').innerText = "你是接收方：1. 生成密钥对（为了安全，你可以每次都重新生成）；2. 将公钥分享给对方；3. 使用私钥解密接收到的加密文本。";
+            document.getElementById('encryptSection').style.display = 'none';
+            document.getElementById('decryptSection').style.display = 'block';
+        }
+
+        function iAmBoth() {
+            document.getElementById('help').innerText = "你是发送方：1. 让对方生成密钥对；2. 让对方分享公钥；3. 使用公钥加密文本，发送给对方。\n你是接收方：1. 生成密钥对（为了安全，你可以每次都重新生成）；2. 将公钥分享给对方；3. 使用私钥解密接收到的加密文本。";
+            document.getElementById('encryptSection').style.display = 'block';
+            document.getElementById('decryptSection').style.display = 'block';
         }
 
         function showToast(id) {
@@ -244,7 +255,7 @@
         }
 
         let crypt;
-        const defaultKeySize = 1024;
+        const defaultKeySize = 2048;
 
         // 动态初始化加密/解密时的 RSA 加密工具
         function initializeCrypt() {
@@ -290,10 +301,10 @@
             initializeCrypt();  // 动态初始化
             const inputText = document.getElementById('inputText').value;
             const encrypted = crypt.encrypt(inputText);
-            document.getElementById('encrypted').value = encrypted || "加密失败，请检查公钥是否正确设置。";
+            document.getElementById('encrypted').value = encrypted || "加密失败，请检查公钥是否正确设置，或者文本是否过长。";
 
             // 将加密的文本同步到解密输入框
-            document.getElementById('decryptInput').value = encrypted || "加密失败，请检查公钥是否正确设置。";
+            document.getElementById('decryptInput').value = encrypted || "加密失败，请检查公钥是否正确设置，或者文本是否过长。";
         }
 
         // 解密文本
